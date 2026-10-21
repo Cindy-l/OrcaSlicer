@@ -206,7 +206,7 @@
 #include "filamentsync/SyncConfirmDialog.hpp"
 #include "filamentsync/SyncFilamentColorDialog.hpp"
 
-#include "sentry_wrapper/SentryWrapper.hpp"
+#include "app_common/SentryWrapper.hpp"
 #include <chrono>
 
 using boost::optional;
@@ -9444,10 +9444,13 @@ void Sidebar::show_sync_filament_dialog()
         ConfigOptionStrings* mco = preset_bundle->project_config.option<ConfigOptionStrings>("filament_multi_colors");
         ConfigOptionInts*    cmo = preset_bundle->project_config.option<ConfigOptionInts>("filament_colour_mode");
 
+        std::string slot0_matched_preset{};
         for (size_t i = 0; i < effective_size; ++i) {
             Preset* matched = resolve_filament_preset(preset_bundle, syncedData[i].m_name, syncedData[i].m_type);
             if (matched) {
                 preset_bundle->set_filament_preset(i, matched->name);
+                if (i == 0)
+                    slot0_matched_preset = matched->name;
             }
 
             if (co && i < co->values.size()) {
@@ -9476,6 +9479,30 @@ void Sidebar::show_sync_filament_dialog()
 
         const size_t num_filaments = effective_size;
         wxGetApp().plater()->on_filaments_change(num_filaments);
+
+        // Single-filament projects slice from the edited filament preset, which
+        // set_filament_preset() above does not switch. Deferred via CallAfter:
+        // running the switch and the config propagation inline inside the sync
+        // dialog's event context froze the UI.
+        const bool switch_edited_preset = num_filaments == 1 && !slot0_matched_preset.empty() &&
+            preset_bundle->filaments.get_edited_preset().name != slot0_matched_preset;
+        {
+            std::string preset_to_select = slot0_matched_preset;
+            wxGetApp().CallAfter([switch_edited_preset, preset_to_select]() {
+                // Re-fetch: a captured Plater* could dangle across GUI recreation.
+                Plater* plater = wxGetApp().plater();
+                if (plater == nullptr)
+                    return;
+                if (switch_edited_preset) {
+                    Tab* filament_tab = wxGetApp().get_tab(Preset::TYPE_FILAMENT);
+                    if (filament_tab != nullptr)
+                        filament_tab->select_preset(preset_to_select);
+                }
+                // Update the plater config and schedule a reslice, like the manual
+                // preset switch in on_select_preset.
+                plater->on_config_change(wxGetApp().preset_bundle->full_config());
+            });
+        }
 
         wxGetApp().get_tab(Preset::TYPE_PRINT)->update();
         preset_bundle->export_selections(*wxGetApp().app_config);
@@ -15547,6 +15574,12 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
         }
         m_slice_all = false;
         m_is_slicing = false;
+        // Refresh the button right after m_is_slicing clears: in the cancelled branch
+        // above, get_enable_slice_status() still sees m_is_slicing == true and would
+        // re-disable the button instead of re-enabling it.
+        if (evt.cancelled()) {
+            this->main_frame->update_slice_print_status(MainFrame::eEventSliceUpdate, true, true);
+        }
         this->preview->reload_print(false);
         /* BBS if in publishing progress */
         if (m_is_publishing) {
@@ -16425,7 +16458,7 @@ void Plater::priv::set_project_name(const wxString& project_name)
     m_project_name = project_name;
     //update topbar title
 #ifdef __WINDOWS__
-    wxGetApp().mainframe->SetTitle(m_project_name + " - Snapmaker Orca");
+    wxGetApp().mainframe->SetTitle(m_project_name + " - " + wxString(SLIC3R_APP_NAME));
     wxGetApp().mainframe->topbar()->SetTitle(m_project_name);
 #else
     wxGetApp().mainframe->SetTitle(m_project_name);
@@ -20113,6 +20146,10 @@ void Plater::reset_with_confirm()
 // BBS: save logic
 int GUI::Plater::close_with_confirm(std::function<bool(bool)> second_check)
 {
+    // Session end: discard without dialog (see wxEVT_QUERY_END_SESSION handler).
+    if (wxGetApp().in_session_end())
+        return wxID_NO;
+
     if (up_to_date(false, false)) {
         if (second_check && !second_check(false)) return wxID_CANCEL;
         model().set_backup_path("");
@@ -21783,7 +21820,12 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
             wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpMonitor);
         }
 
-        delete dialog;
+        // Use wx deferred destruction instead of a direct delete: the dialog was
+        // just returning from its modal loop, and the destructor clears the
+        // global registration. Clear it now so nothing can touch the pending
+        // window before wx actually deletes it (Sentry SNAPMAKER_ORCA-21F).
+        dialog->Destroy();
+        wxGetApp().set_web_preprint_dialog(nullptr);
 
         return;
     }
@@ -23503,7 +23545,11 @@ bool Plater::set_printer_technology(PrinterTechnology printer_technology)
     p->sidebar->get_searcher().set_printer_technology(printer_technology);
 
     p->notification_manager->set_fff(printer_technology == ptFFF);
-    p->notification_manager->set_slicing_progress_hidden();
+    if (ret) {
+        // Only hide when the technology actually changed (ret): hiding on same-technology
+        // preset reload (device connect) kills the popup of a running slice for good.
+        p->notification_manager->set_slicing_progress_hidden();
+    }
 
     return ret;
 }

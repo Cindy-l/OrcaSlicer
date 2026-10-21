@@ -9,7 +9,7 @@
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/SSWCPProtocol.hpp"
-#include "sentry_wrapper/SentryWrapper.hpp"
+#include "app_common/SentryWrapper.hpp"
 #include "slic3r/Utils/SnapLogClient.hpp"
 #include <algorithm>
 #include <iterator>
@@ -6370,8 +6370,10 @@ void SSWCP_MachineManage_Instance::sw_AddDevice()
 {
     try {
         wxGetApp().CallAfter([] {
-            if (wxGetApp().web_device_dialog)
-                delete wxGetApp().web_device_dialog;
+            if (wxGetApp().web_device_dialog) {
+                wxGetApp().web_device_dialog->Destroy();
+                wxGetApp().web_device_dialog = nullptr;
+            }
 
             wxGetApp().web_device_dialog = new WebDeviceDialog;
             wxGetApp().web_device_dialog->run();
