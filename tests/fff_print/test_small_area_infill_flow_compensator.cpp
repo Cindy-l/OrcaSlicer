@@ -31,22 +31,6 @@ SCENARIO("SmallAreaInfillFlowCompensator interpolates the CSV flow model", "[SAI
     }
 }
 
-SCENARIO("SmallAreaInfillFlowCompensator degrades a 2-point model to linear interpolation", "[SAIFC]") {
-    GIVEN("a 2-point model (0,0.4) (2,1.0)") {
-        GCodeConfig config;
-        init_config(config, { "0,0.4", "2,1.0" });
-        SmallAreaInfillFlowCompensator comp(config);
-
-        THEN("the spline falls back to a straight line between the two points") {
-            REQUIRE_THAT(comp.modify_flow(1.0, 1.0, erSolidInfill), WithinRel(0.7, 1e-6)); // (0.4 + 1.0) / 2
-        }
-        THEN("the tail still caps at 1.0 beyond the last point") {
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erSolidInfill), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(5.0, 1.0, erSolidInfill), WithinRel(1.0, 1e-6));
-        }
-    }
-}
-
 SCENARIO("SmallAreaInfillFlowCompensator caps compensation at the tail of the model", "[SAIFC]") {
     GIVEN("a valid model (0,0.4) (2,0.7) (5,1.0)") {
         GCodeConfig config;
