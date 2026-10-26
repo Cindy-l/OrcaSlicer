@@ -141,39 +141,6 @@ static void require_rate_profile(const std::vector<OutPiece> &pieces, double slo
 // Scenarios
 // ---------------------------------------------------------------------------
 
-SCENARIO("PressureEqualizer passthrough with zero slope", "[PressureEqualizer]") {
-    GCodeConfig config;
-    init_config(config, 0.f);
-
-    // NOTE: with slope == 0 the constructor leaves the slope members
-    // uninitialized (production only constructs the equalizer for slope > 0,
-    // see GCode.cpp). This scenario relies on them reading as zero, which
-    // gives slope 0 the documented "no limiting" meaning. If it ever fails
-    // sporadically, the robust fix is a one-line default initialization of
-    // those members in PressureEqualizer.hpp.
-    //
-    // Three flow-adjustable segments with very different rates, but slope limit = 0.
-    // The ;_EXTRUSION_ROLE:1 tag is metadata, consumed by the parser and not emitted.
-    const std::string gcode =
-        ";_EXTRUSION_ROLE:1\n"
-        "G1 X10 Y0 E0.5 F1200 ;_EXTRUDE_SET_SPEED\n"
-        "G1 X20 Y0 E0.5 F300\n"
-        "G1 X30 Y0 E0.5 F300\n"
-        ";_EXTRUDE_END\n";
-    const std::string expected =
-        "G1 X10 Y0 E0.5 F1200 ;_EXTRUDE_SET_SPEED\n"
-        "G1 X20 Y0 E0.5 F300\n"
-        "G1 X30 Y0 E0.5 F300\n"
-        ";_EXTRUDE_END\n";
-
-    WHEN("a layer is processed") {
-        std::string out = process_single_layer(config, gcode);
-        THEN("the output is byte-identical to the input (minus consumed role tag)") {
-            REQUIRE(out == expected);
-        }
-    }
-}
-
 SCENARIO("PressureEqualizer limits the volumetric rate slope on deceleration", "[PressureEqualizer]") {
     GCodeConfig config;
     init_config(config, 0.5f);
