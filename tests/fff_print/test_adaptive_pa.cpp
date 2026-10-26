@@ -103,6 +103,9 @@ SCENARIO("AdaptivePAInterpolator empty CSV is a fake success", "[AdaptivePA]") {
         int rc = interp.parseAndSetData("");
 
         THEN("parse returns 0 but there is no data to interpolate") {
+            // FIXME: "fake success" — empty CSV returns 0 and isInitialised()==true, but
+            // the interpolator holds no data and operator() returns -1. Pinned as a known
+            // quirk; consider returning -1 from parseAndSetData for empty/insufficient input.
             REQUIRE(rc == 0);                // the "fake success" trap
             REQUIRE(interp.isInitialised()); // flag is still set
             REQUIRE(interp(0.5, 5000) == -1.0); // but operator() fails

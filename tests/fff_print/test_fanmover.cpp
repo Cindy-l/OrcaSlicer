@@ -73,6 +73,9 @@ SCENARIO("fan speed-up with a buffer shorter than the delay is emitted immediate
 
     // Only 1s of motion is buffered, less than the 5s delay: the M106 cannot be moved back,
     // so it is printed right away, ahead of the still-buffered G1 (existing behavior).
+    // FIXME: existing behavior — when buffered time < delay, M106 is emitted immediately
+    // (ahead of the still-buffered G1). Pinned as characterization; revisit if the
+    // move-back ordering is ever changed.
     const std::string gcode =
         "G1 X10 Y0 E0.4 F600\n"
         "M106 S255\n";

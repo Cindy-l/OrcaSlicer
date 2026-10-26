@@ -25,8 +25,8 @@ SCENARIO("SmallAreaInfillFlowCompensator interpolates the CSV flow model", "[SAI
             // Natural cubic spline through (0,0.4),(2,0.7),(5,1.0):
             //   S(x) = 0.4 + 0.16x - 0.0025x^3          on [0,2]  -> S(1.0) = 0.5575
             //   S(x) = 0.7 + 0.13(x-2) - 0.015(x-2)^2 + 0.0016667(x-2)^3  on [2,5] -> S(3.5) = 0.866875
-            REQUIRE_THAT(comp.modify_flow(1.0, 1.0, erSolidInfill), WithinRel(0.5575, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(3.5, 1.0, erSolidInfill), WithinRel(0.866875, 1e-6));
+            CHECK_THAT(comp.modify_flow(1.0, 1.0, erSolidInfill), WithinRel(0.5575, 1e-6));
+            CHECK_THAT(comp.modify_flow(3.5, 1.0, erSolidInfill), WithinRel(0.866875, 1e-6));
         }
     }
 }
@@ -42,8 +42,8 @@ SCENARIO("SmallAreaInfillFlowCompensator caps compensation at the tail of the mo
         }
 
         THEN("a length beyond the model is not compensated (tail = 1.0)") {
-            REQUIRE_THAT(comp.modify_flow(5.01, 1.0, erSolidInfill), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(100.0, 1.0, erSolidInfill), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(5.01, 1.0, erSolidInfill), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(100.0, 1.0, erSolidInfill), WithinRel(1.0, 1e-6));
         }
 
         THEN("a zero-length line is not compensated") {
@@ -59,23 +59,23 @@ SCENARIO("SmallAreaInfillFlowCompensator only compensates solid-infill roles", "
         SmallAreaInfillFlowCompensator comp(config);
 
         THEN("solid-infill / top-solid / bottom-surface roles are compensated") {
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erSolidInfill), WithinRel(0.7, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erTopSolidInfill), WithinRel(0.7, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erBottomSurface), WithinRel(0.7, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erSolidInfill), WithinRel(0.7, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erTopSolidInfill), WithinRel(0.7, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erBottomSurface), WithinRel(0.7, 1e-6));
         }
 
         THEN("perimeter roles are left unchanged") {
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erPerimeter), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erExternalPerimeter), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erOverhangPerimeter), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erPerimeter), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erExternalPerimeter), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erOverhangPerimeter), WithinRel(1.0, 1e-6));
         }
 
         THEN("non-solid infill roles are left unchanged") {
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erInternalInfill), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erBridgeInfill), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erInternalBridgeInfill), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erGapFill), WithinRel(1.0, 1e-6));
-            REQUIRE_THAT(comp.modify_flow(2.0, 1.0, erIroning), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erInternalInfill), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erBridgeInfill), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erInternalBridgeInfill), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erGapFill), WithinRel(1.0, 1e-6));
+            CHECK_THAT(comp.modify_flow(2.0, 1.0, erIroning), WithinRel(1.0, 1e-6));
         }
     }
 }
